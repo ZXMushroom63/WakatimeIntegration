@@ -12,6 +12,14 @@
 #include "JsonUtilities.h"
 #include "Containers/Ticker.h"
 #include <chrono>
+#include "WakatimeSettings.h"
+#include "ISettingsModule.h"
+#include "HttpModule.h"
+#include "Interfaces/IHttpRequest.h"
+#include "Interfaces/IHttpResponse.h"
+#include "Serialization/JsonSerializer.h"
+#include "Misc/App.h"
+#include "Misc/EngineVersion.h"
 
 #define LOCTEXT_NAMESPACE "FWakatimeIntegrationModule"
 
@@ -20,6 +28,16 @@ IMPLEMENT_MODULE(FWakatimeIntegrationModule, WakatimeIntegration)
 
 void FWakatimeIntegrationModule::StartupModule()
 {
+	if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings")) {
+		SettingsModule->RegisterSettings("Editor", "Plugins", "Wakatime_Settings",
+			NSLOCTEXT("WakatimeIntegration", "WakatimeSettingsDisplayName", "Wakatime Integration"),
+			NSLOCTEXT("WakatimeIntegration", "WakatimeSettingsDescription", "Settings for Wakatime Integration plugin"),
+			GetMutableDefault<UWakatimeSettings>());
+	}
+
+	const UWakatimeSettings* Settings = GetDefault<UWakatimeSettings>();
+	const float TimerDuration = Settings->WakatimeInterval;
+
 	IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 	AssetRegistry.OnAssetAdded().AddRaw(this, &FWakatimeIntegrationModule::OnAssetAdded);
 	AssetRegistry.OnAssetRemoved().AddRaw(this, &FWakatimeIntegrationModule::OnAssetRemoved);
@@ -28,7 +46,7 @@ void FWakatimeIntegrationModule::StartupModule()
 
 	TimerHandle = FTicker::GetCoreTicker().AddTicker(
 		FTickerDelegate::CreateRaw(this, &FWakatimeIntegrationModule::OnTimerTick),
-		30.0f
+		TimerDuration
 	);
 
 	UE_LOG(LogTemp, Warning, TEXT("Wakatime Integration Startup"));
@@ -42,6 +60,11 @@ void FWakatimeIntegrationModule::ShutdownModule()
 		AssetRegistry.OnAssetAdded().RemoveAll(this);
 		AssetRegistry.OnAssetRemoved().RemoveAll(this);
 		AssetRegistry.OnAssetRenamed().RemoveAll(this);
+
+		if (ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings"))
+		{
+			SettingsModule->UnregisterSettings("Editor", "Plugins", "WakatimeIntegration");
+		}
 	}
 
 	//FKismetEditorUtilities::OnBlueprintCompiled.RemoveAll(this);
@@ -134,11 +157,42 @@ void FWakatimeIntegrationModule::SendHeartbeat()
 		localAddOperations = AddOperations;
 		localLastSavedName = LastSavedName;
 	}
+	const UWakatimeSettings* Settings = GetDefault<UWakatimeSettings>();
+	if (!Settings) {
+		UE_LOG(LogTemp, Error, TEXT("Waka: Settings are invalid, cannot send heartbeat."));
+		return;
+	}
 
-	/*TSharedPtr<FJsonObject> requestBody = MakeShared<FJsonObject>();
-	requestBody->SetNumberField("totalBlueprintEdits", EditsToSend);
-	JsonObject->SetStringField("lastSavedObject", LastSavedToSend);*/
-	UE_LOG(LogTemp, Warning, TEXT("Waka: TODO(Send Heartbeat)"));
+	FString Endpoint = Settings->WakatimeEndpoint;
+	if (Endpoint.EndsWith(TEXT("/"))) //remove trailing slash
+	{
+		Endpoint.RemoveAt(Endpoint.Len() - 1);
+	}
+
+	FString TargetURL = Endpoint + TEXT("/users/current/heartbeats");
+	FString Body = FString::Printf(
+		TEXT( //language as UnrealEngine because you could be making shaders, doing blueprints, c++, really anything
+			"{\"type\": \"file\", \"time\" : % s, \"project\": %s, \"entity\": %s, "
+			"\"language\": \"UnrealEngine\", \"plugin\": \"UnrealEngine\", \"is_write\": false, "
+			"\"user_agent\": \"unreal_engine/%s\"}"
+		),
+		GetCurrentTime(), FApp::GetProjectName(), localLastSavedName, FEngineVersion::Current().ToString(EVersionComponent::Patch));
+	UE_LOG(LogTemp, Warning, TEXT("%s"), Body);
+
+	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
+	Request->SetURL(TargetURL);
+	Request->SetVerb(TEXT("POST"));
+	Request->SetHeader(TEXT("Content-Type"), TEXT("application/json"));
+	Request->SetHeader(TEXT("User-Agent"), TEXT("UnrealEngine4"));
+
+	FString AuthToken = FString::Printf(TEXT("Bearer %s"), *Settings->WakatimeBearerToken);
+	Request->SetHeader(TEXT("Authorization"), AuthToken);
+
+	Request->SetContentAsString(Body);
+
+	Request->ProcessRequest();
+
+	UE_LOG(LogTemp, Warning, TEXT("Waka: Sent Heatbeat"));
 }
 
 int64 FWakatimeIntegrationModule::GetCurrentTime()

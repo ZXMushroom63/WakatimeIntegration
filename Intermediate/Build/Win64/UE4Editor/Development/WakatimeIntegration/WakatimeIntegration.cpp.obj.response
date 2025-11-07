@@ -234,6 +234,7 @@
 /I Runtime\ClothingSystemRuntimeInterface\Public
 /I ..\Intermediate\Build\Win64\UE4Editor\Inc\JsonUtilities
 /I Runtime\JsonUtilities\Public
+/I "C:\Users\rober\OneDrive\Documents\Unreal Projects\UE4_Wakatime\Plugins\WakatimeIntegration\Intermediate\Build\Win64\UE4Editor\Inc\WakatimeIntegration"
 /I "C:\Users\rober\OneDrive\Documents\Unreal Projects\UE4_Wakatime\Plugins\WakatimeIntegration\Source"
 /I "C:\Users\rober\OneDrive\Documents\Unreal Projects\UE4_Wakatime\Plugins\WakatimeIntegration\Source\WakatimeIntegration\Public"
 /I ThirdParty\PhysX3\PxShared\include

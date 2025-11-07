@@ -10,6 +10,7 @@
 struct FAssetData;
 class UBlueprint;
 class UObject;
+class UWakatimeSettings;
 
 class FWakatimeIntegrationModule : public IModuleInterface
 {
