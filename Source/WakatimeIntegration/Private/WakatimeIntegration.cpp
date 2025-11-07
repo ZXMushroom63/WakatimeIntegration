@@ -221,7 +221,7 @@ void FWakatimeIntegrationModule::SendHeartbeat()
 	FString TargetURL = Endpoint + TEXT("/users/current/heartbeats");
 	FString Body = FString::Printf(
 		TEXT( //language as UnrealEngine because you could be making shaders, doing blueprints, c++, really anything
-			"{\"type\": \"file\", \"time\" : %lld, \"project\": %s, \"entity\": \"%s\", "
+			"{\"type\": \"file\", \"time\" : %lld, \"project\": \"%s\", \"entity\": \"%s\", "
 			"\"language\": \"UnrealEngine\", \"plugin\": \"UnrealEngine\", \"is_write\": false, "
 			"\"user_agent\": \"unreal_engine/%s\", \"machine_name_id\": \"%s\", "
 			"\"line_additions\": %d, \"line_deletions\": %d, \"operating_system\": \"%s\"}"
