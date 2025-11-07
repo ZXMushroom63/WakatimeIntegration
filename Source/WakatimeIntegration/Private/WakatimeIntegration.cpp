@@ -161,14 +161,17 @@ bool FWakatimeIntegrationModule::OnTimerTick(float DeltaTime)
 
 void FWakatimeIntegrationModule::SendHeartbeat()
 {
-	FName localLastSavedName;
+	UE_LOG(LogTemp, Warning, TEXT("waka sanity check"));
+	FName localLastSavedName = TEXT("None");
 	int32 localDeleteOperations = 0;
 	int32 localSaveOperations = 0;
 	int32 localRenameOperations = 0;
 	int32 localAddOperations = 0;
+	bool localDirty = false;
 	{
 		FScopeLock Lock(&DataLock);
-		if (!Dirty) {
+		localDirty = Dirty;
+		if (!localDirty) {
 			return; //don't bother copying anything
 		}
 		localDeleteOperations = DeleteOperations;
@@ -176,6 +179,10 @@ void FWakatimeIntegrationModule::SendHeartbeat()
 		localRenameOperations = RenameOperations;
 		localAddOperations = AddOperations;
 		localLastSavedName = LastSavedName;
+	}
+	UE_LOG(LogTemp, Warning, TEXT("waka copy success"));
+	if (!localDirty) {
+		return;
 	}
 	const UWakatimeSettings* Settings = GetDefault<UWakatimeSettings>();
 	if (!Settings) {
@@ -189,17 +196,40 @@ void FWakatimeIntegrationModule::SendHeartbeat()
 		Endpoint.RemoveAt(Endpoint.Len() - 1);
 	}
 
+	FString EntityName = TEXT("None");
+	if (localLastSavedName.IsValid())
+	{
+		EntityName = localLastSavedName.ToString();
+	}
+	UE_LOG(LogTemp, Warning, TEXT("waka s time"));
+	int64 localTime = GetCurrentTime();
+
+	UE_LOG(LogTemp, Warning, TEXT("waka s enginever"));
+	FString EngineVersionString = FEngineVersion::Current().ToString(EVersionComponent::Patch);
+
+	UE_LOG(LogTemp, Warning, TEXT("waka s projname"));
+	FString ProjectName = FApp::GetProjectName();
+
+	UE_LOG(LogTemp, Warning, TEXT("waka s compname"));
+	FString ComputerName = FPlatformProcess::ComputerName();
+
+	UE_LOG(LogTemp, Warning, TEXT("waka s osname"));
+	FString OSName = GetCurrentOSName();
+
+
+	UE_LOG(LogTemp, Warning, TEXT("waka formatting part"));
 	FString TargetURL = Endpoint + TEXT("/users/current/heartbeats");
 	FString Body = FString::Printf(
 		TEXT( //language as UnrealEngine because you could be making shaders, doing blueprints, c++, really anything
-			"{\"type\": \"file\", \"time\" : % s, \"project\": %s, \"entity\": %s, "
+			"{\"type\": \"file\", \"time\" : %lld, \"project\": %s, \"entity\": \"%s\", "
 			"\"language\": \"UnrealEngine\", \"plugin\": \"UnrealEngine\", \"is_write\": false, "
 			"\"user_agent\": \"unreal_engine/%s\", \"machine_name_id\": \"%s\", "
-			"\"line_additions\": %d, \"line_deletions\": %d, \"operating_system\": %s}"
+			"\"line_additions\": %d, \"line_deletions\": %d, \"operating_system\": \"%s\"}"
 		),
-		GetCurrentTime(), *FApp::GetProjectName(), *localLastSavedName.ToString(), *(FEngineVersion::Current().ToString(EVersionComponent::Patch)),
-		*FPlatformProcess::ComputerName(), localAddOperations, localDeleteOperations, *GetCurrentOSName());
+		localTime, *ProjectName, *EntityName, *EngineVersionString,
+		*ComputerName, localAddOperations, localDeleteOperations, *OSName);
 	UE_LOG(LogTemp, Warning, TEXT("%s"), *Body);
+	UE_LOG(LogTemp, Warning, TEXT("waka formatting part done"));
 
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
 	Request->SetURL(TargetURL);
