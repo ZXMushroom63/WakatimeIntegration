@@ -20,6 +20,7 @@
 #include "Serialization/JsonSerializer.h"
 #include "Misc/App.h"
 #include "Misc/EngineVersion.h"
+#include "HAL/PlatformProcess.h"
 
 #define LOCTEXT_NAMESPACE "FWakatimeIntegrationModule"
 
@@ -132,6 +133,25 @@ void FWakatimeIntegrationModule::OnObjectSaved(UObject* SavedObject)
 	UE_LOG(LogTemp, Warning, TEXT("Waka: Object Saved"));
 }
 
+FString GetCurrentOSName()
+{
+#if PLATFORM_WINDOWS
+	return TEXT("windows"); // a lot of these are unrealistic, but imagine if you did get UE4 on an xbox live
+#elif PLATFORM_XBOXONE
+	return TEXT("xboxone");
+#elif PLATFORM_MAC
+	return TEXT("darwin");
+#elif PLATFORM_IOS
+	return TEXT("ios");
+#elif PLATFORM_LINUX
+	return TEXT("linux");
+#elif PLATFORM_ANDROID
+	return TEXT("android");
+#else
+	return TEXT("unknown");
+#endif
+}
+
 bool FWakatimeIntegrationModule::OnTimerTick(float DeltaTime)
 {
 	UE_LOG(LogTemp, Warning, TEXT("Waka: Timer Event"));
@@ -174,10 +194,12 @@ void FWakatimeIntegrationModule::SendHeartbeat()
 		TEXT( //language as UnrealEngine because you could be making shaders, doing blueprints, c++, really anything
 			"{\"type\": \"file\", \"time\" : % s, \"project\": %s, \"entity\": %s, "
 			"\"language\": \"UnrealEngine\", \"plugin\": \"UnrealEngine\", \"is_write\": false, "
-			"\"user_agent\": \"unreal_engine/%s\"}"
+			"\"user_agent\": \"unreal_engine/%s\", \"machine_name_id\": \"%s\", "
+			"\"line_additions\": %d, \"line_deletions\": %d, \"operating_system\": %s}"
 		),
-		GetCurrentTime(), FApp::GetProjectName(), localLastSavedName, FEngineVersion::Current().ToString(EVersionComponent::Patch));
-	UE_LOG(LogTemp, Warning, TEXT("%s"), Body);
+		GetCurrentTime(), *FApp::GetProjectName(), *localLastSavedName.ToString(), *(FEngineVersion::Current().ToString(EVersionComponent::Patch)),
+		*FPlatformProcess::ComputerName(), localAddOperations, localDeleteOperations, *GetCurrentOSName());
+	UE_LOG(LogTemp, Warning, TEXT("%s"), *Body);
 
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> Request = FHttpModule::Get().CreateRequest();
 	Request->SetURL(TargetURL);
