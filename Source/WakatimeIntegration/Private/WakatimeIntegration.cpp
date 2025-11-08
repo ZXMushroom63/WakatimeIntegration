@@ -50,7 +50,7 @@ void FWakatimeIntegrationModule::StartupModule()
 		TimerDuration
 	);
 
-	UE_LOG(LogTemp, Warning, TEXT("Wakatime Integration Startup"));
+	//UE_LOG(LogTemp, Warning, TEXT("Wakatime Integration Startup"));
 }
 
 void FWakatimeIntegrationModule::ShutdownModule()
@@ -76,7 +76,7 @@ void FWakatimeIntegrationModule::ShutdownModule()
 
 	FTicker::GetCoreTicker().RemoveTicker(TimerHandle);
 
-	UE_LOG(LogTemp, Warning, TEXT("Wakatime Integration Shutdown"));
+	//UE_LOG(LogTemp, Warning, TEXT("Wakatime Integration Shutdown"));
 }
 
 void FWakatimeIntegrationModule::OnAssetAdded(const FAssetData& AssetData)
@@ -267,7 +267,7 @@ void FWakatimeIntegrationModule::OnHttpResponse(FHttpRequestPtr Request, FHttpRe
 	FString ResponseString = Response->GetContentAsString();
 
 	if (ResponseCode >= 200 && ResponseCode < 300) {
-		//UE_LOG(LogTemp, Log, TEXT("Wakatime Integration: Packet accepted with code %d"), ResponseCode);
+		UE_LOG(LogTemp, Log, TEXT("Wakatime Integration: Heartbeat accepted with code %d"), ResponseCode);
 	}
 	else if (ResponseCode == 401)
 	{
